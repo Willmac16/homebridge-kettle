@@ -1,0 +1,50 @@
+{
+  "pluginAlias": "MyKettle",
+  "pluginType": "accessory",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "accessory": {
+        "type": "string",
+        "const": "MyKettle",
+        "title": "Accessory Type",
+        "description": "Required by Homebridge to match the plugin. Leave as MyKettle.",
+        "readOnly": true
+      },
+      "name": {
+        "type": "string",
+        "title": "Name",
+        "default": "Kettle",
+        "minLength": 1
+      },
+      "url": {
+        "type": "string",
+        "title": "Kettle URL",
+        "description": "Base URL of the kettle (no /cli).",
+        "default": "http://192.168.1.32",
+        "pattern": "^https?://"
+      },
+      "minTemp": {
+        "type": "number",
+        "title": "Minimum Temperature (\u00b0C)",
+        "default": 40,
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Lowest target temperature exposed to HomeKit."
+      },
+      "maxTemp": {
+        "type": "number",
+        "title": "Maximum Temperature (\u00b0C)",
+        "default": 100,
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Highest target temperature exposed to HomeKit."
+      }
+    },
+    "required": [
+      "accessory",
+      "name",
+      "url"
+    ]
+  }
+}

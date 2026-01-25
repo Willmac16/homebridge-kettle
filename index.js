@@ -144,10 +144,10 @@ class StaggEKGAccessory {
                 callback(error);
                 return;
             }
-            const tempF = this._parseTemp(body);
+            const tempC = this._parseTemp(body);
             this.log(`getCurrentTemperatureHandler result:`, body)
-            if (tempF !== null) {
-                this.service.updateCharacteristic(Characteristic.CurrentTemperature, this._fToC(tempF))
+            if (tempC !== null) {
+                this.service.updateCharacteristic(Characteristic.CurrentTemperature, tempC)
             }
             callback(null, this.service.getCharacteristic(Characteristic.CurrentTemperature).value)
         })

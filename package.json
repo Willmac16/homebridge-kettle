@@ -22,5 +22,11 @@
   },
   "scripts": {
     "test": "node test/parsers.test.js && node test/cli.test.js"
+  },
+  "homebridge": {
+    "pluginAlias": "MyKettle",
+    "pluginType": "accessory",
+    "singular": true,
+    "configSchema": "config.schema.json"
   }
 }

@@ -19,4 +19,8 @@ Note: heating control uses the CLI `setstate` command, so your kettle firmware m
 ],
 ```
 
+## Homebridge UI
+If you use the Homebridge Config UI, this plugin now includes a config schema so you get the graphical form. The accessory type must remain `MyKettle` so Homebridge can match the plugin.
+
+
 `minTemp` and `maxTemp` are specified in Celsius.
