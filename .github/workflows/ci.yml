@@ -16,10 +16,8 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: homebridge-kettle/package.json
+          cache-dependency-path: package.json
       - name: Install
-        working-directory: homebridge-kettle
         run: npm install
       - name: Test
-        working-directory: homebridge-kettle
         run: npm test
