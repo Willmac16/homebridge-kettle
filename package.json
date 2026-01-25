@@ -26,7 +26,6 @@
   "homebridge": {
     "pluginAlias": "MyKettle",
     "pluginType": "accessory",
-    "singular": true,
     "configSchema": "config.schema.json"
   }
 }

@@ -15,12 +15,13 @@
         "type": "string",
         "title": "Name",
         "default": "Kettle",
-        "minLength": 1
+        "minLength": 1,
+        "description": "Accessory name shown in HomeKit. Use a unique name per kettle."
       },
       "url": {
         "type": "string",
         "title": "Kettle URL",
-        "description": "Base URL of the kettle (no /cli).",
+        "description": "Base URL of the kettle (no /cli). Use a unique URL per kettle.",
         "default": "http://192.168.1.32",
         "pattern": "^https?://"
       },
@@ -45,6 +46,7 @@
       "accessory",
       "name",
       "url"
-    ]
+    ],
+    "title": "Fellow Stagg EKG Kettle"
   }
 }
