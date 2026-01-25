@@ -19,5 +19,8 @@
   },
   "dependencies": {
     "request": "^2.65.0"
+  },
+  "scripts": {
+    "test": "node test/parsers.test.js && node test/cli.test.js"
   }
 }

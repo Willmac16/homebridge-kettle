@@ -1,7 +1,9 @@
 # Homebridge Kettle
-This is a simple Homebridge plugin for the [Fellow Stagg EKG+]() kettle so that it can be controlled over WiFi using HomeKit.
+This is a simple Homebridge plugin for the Fellow Stagg EKG Pro/Plus so that it can be controlled over WiFi using HomeKit.
 
-This is intended to be used with my [`stagg-ekg-plus` Python program](https://github.com/calvinmclean/stagg-ekg-plus) which handles the actual BLE communication with the kettle.
+This version talks directly to the kettle's HTTP CLI API (no Python/BLE bridge required).
+
+Note: heating control uses the CLI `setstate` command, so your kettle firmware must support `setstate 0/1`.
 
 ## Config Example
 ```json
@@ -10,7 +12,11 @@ This is intended to be used with my [`stagg-ekg-plus` Python program](https://gi
         "accessory": "MyKettle",
         "room": "Kitchen",
         "name": "Kettle",
-        "url": "http://localhost:8000"
+        "url": "http://192.168.1.32",
+        "minTemp": 40,
+        "maxTemp": 100
     }
 ],
 ```
+
+`minTemp` and `maxTemp` are specified in Celsius.

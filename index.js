@@ -17,10 +17,17 @@ class StaggEKGAccessory {
         this.config = config;
         this.service = new Service.Thermostat(this.config.name);
         this.url = this.config.url;
-        this.tempDisplayUnits = 1;
+        this.tempDisplayUnits = 0;
 
-        this.maxTemp = 100;
-        this.minTemp = 40;
+        this.minTemp = (typeof this.config.minTemp === "number") ? this.config.minTemp : 40;
+        this.maxTemp = (typeof this.config.maxTemp === "number") ? this.config.maxTemp : 100;
+
+        const baseUrl = (this.url || "").replace(/\?.*$/, "");
+        if (baseUrl.endsWith("/cli")) {
+            this.cliUrl = baseUrl;
+        } else {
+            this.cliUrl = baseUrl.replace(/\/+$/, "") + "/cli";
+        }
     }
 
     getServices () {
@@ -40,20 +47,21 @@ class StaggEKGAccessory {
 
         this.service.getCharacteristic(Characteristic.TargetTemperature)
             .setProps({
-                maxValue: 100,
-                minValue: 40,
+                maxValue: this.maxTemp,
+                minValue: this.minTemp,
                 unit: 1
             })
 
         this.service.getCharacteristic(Characteristic.CurrentTemperature)
             .setProps({
-                maxValue: 100,
+                maxValue: this.maxTemp,
+                // Allow room-temp readings below the target range.
                 minValue: 0,
                 unit: 1
             })
 
         this.service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
-            .setProps({value: 1})
+            .setProps({value: this.tempDisplayUnits})
 
         this.service.getCharacteristic(Characteristic.CurrentTemperature)
             .on('get', this.getCurrentTemperatureHandler.bind(this))
@@ -73,69 +81,76 @@ class StaggEKGAccessory {
 
     getTargetHeatingCoolingStateCharacteristicHandler (callback) {
         this.log(`calling getTargetHeatingCoolingStateCharacteristicHandler`)
-        var self = this;
-        request({
-            url: self.url + "/state",
-            method: "GET"
-        }, function (error, response, body) {
-            self.log(`getTargetHeatingCoolingState result:`, body)
-            self.service.updateCharacteristic(Characteristic.TargetHeatingCoolingState, body)
-        });
-        callback(null, this.service.getCharacteristic(Characteristic.TargetHeatingCoolingState).value)
+        this._cliCommand("state", (error, body) => {
+            if (error) {
+                callback(error);
+                return;
+            }
+            const value = this._parseState(body);
+            this.log(`getTargetHeatingCoolingState result:`, body)
+            if (value !== null) {
+                this.service.updateCharacteristic(Characteristic.TargetHeatingCoolingState, value)
+            }
+            callback(null, this.service.getCharacteristic(Characteristic.TargetHeatingCoolingState).value)
+        })
     }
 
     setTargetHeatingCoolingStateCharacteristicHandler (value, callback) {
-        this.service.updateCharacteristic(Characteristic.TargetHeatingCoolingState, value)
         this.log(`calling setTargetHeatingCoolingStateCharacteristicHandler`, value)
-        var self = this;
-        request({
-            url: self.url + "/state",
-            method: "POST",
-            json: false,
-            body: "value=" + value,
-            headers: {"Content-Length": 7}
-        }, function (error, response, body){});
-        callback(null, value)
+        const state = this._stateForHomeKit(value);
+        this._cliCommand(`setstate ${state}`, (error) => {
+            if (error) {
+                callback(error);
+                return;
+            }
+            this.service.updateCharacteristic(Characteristic.TargetHeatingCoolingState, value)
+            callback(null, value)
+        })
     }
 
     getTargetTemperatureHandler (callback) {
         this.log(`calling getTargetTemperatureHandler`)
-        var self = this;
-        request({
-            url: self.url + "/target_temp",
-            method: "GET"
-        }, function (error, response, body) {
-            self.log(`getTargetTemperatureHandler result:`, body)
-            self.service.updateCharacteristic(Characteristic.TargetTemperature, (body - 32)/1.8000)
-        });
-        callback(null, this.service.getCharacteristic(Characteristic.TargetTemperature).value)
+        this._cliCommand("state", (error, body) => {
+            if (error) {
+                callback(error);
+                return;
+            }
+            const targetC = this._parseTargetTemp(body);
+            this.log(`getTargetTemperatureHandler result:`, body)
+            if (targetC !== null) {
+                this.service.updateCharacteristic(Characteristic.TargetTemperature, targetC)
+            }
+            callback(null, this.service.getCharacteristic(Characteristic.TargetTemperature).value)
+        })
     }
 
     setTargetTemperatureHandler (value, callback) {
-        this.service.updateCharacteristic(Characteristic.TargetTemperature, value)
         this.log(`calling setTargetTemperatureHandler`, value)
-        var self = this;
-        request({
-            url: self.url + "/target_temp",
-            method: "POST",
-            json: false,
-            body: "value=" + value.toString(),
-            headers: {"Content-Length": 6 + value.toString().length}
-        }, function (error, response, body){});
-        callback(null, value)
+        const targetF = Math.round(this._cToF(value));
+        this._cliCommand(`setsetting settempr ${targetF}`, (error) => {
+            if (error) {
+                callback(error);
+                return;
+            }
+            this.service.updateCharacteristic(Characteristic.TargetTemperature, value)
+            callback(null, value)
+        })
     }
 
     getCurrentTemperatureHandler (callback) {
         this.log(`calling getCurrentTemperatureHandler`)
-        var self = this;
-        request({
-            url: self.url + "/current_temp",
-            method: "GET"
-        }, function (error, response, body) {
-            self.log(`getCurrentTemperatureHandler result:`, body)
-            self.service.updateCharacteristic(Characteristic.CurrentTemperature, (body - 32)/1.8000)
-        });
-        callback(null, this.service.getCharacteristic(Characteristic.CurrentTemperature).value)
+        this._cliCommand("state", (error, body) => {
+            if (error) {
+                callback(error);
+                return;
+            }
+            const tempF = this._parseTemp(body);
+            this.log(`getCurrentTemperatureHandler result:`, body)
+            if (tempF !== null) {
+                this.service.updateCharacteristic(Characteristic.CurrentTemperature, this._fToC(tempF))
+            }
+            callback(null, this.service.getCharacteristic(Characteristic.CurrentTemperature).value)
+        })
     }
 
     getTemperatureDisplayUnitsHandler (callback) {
@@ -147,4 +162,100 @@ class StaggEKGAccessory {
         this.log(`calling setTemperatureDisplayUnitsHandler`, value)
         callback(null, this.tempDisplayUnits)
     }
+
+    _cliCommand (cmd, callback) {
+        if (!this.cliUrl || this.cliUrl === "/cli") {
+            callback(new Error("Missing kettle url; set config.url to the kettle base URL."));
+            return;
+        }
+        const encodedCmd = this._encodeCliCommand(cmd);
+        request({
+            url: `${this.cliUrl}?cmd=${encodedCmd}`,
+            method: "GET"
+        }, function (error, response, body) {
+            if (error) {
+                callback(error);
+                return;
+            }
+            callback(null, body)
+        });
+    }
+
+    _encodeCliCommand (cmd) {
+        // Match kettle.sh behavior: replace spaces with '+' only.
+        return String(cmd).replace(/ /g, "+");
+    }
+
+    _parseFirstNumber (body) {
+        const match = (body || "").match(/-?\d+(?:\.\d+)?/);
+        return match ? parseFloat(match[0]) : null;
+    }
+
+    _parseState (body) {
+        const text = (body || "").trim();
+        if (/\bS_(Heat|Hold|StartupToTempr|Calib_(Started|finish))\b/i.test(text)) {
+            return 1;
+        }
+        if (/S_Off/i.test(text)) {
+            return 0;
+        }
+        return null;
+    }
+
+    _stateForHomeKit (value) {
+        return value === 1 ? "S_Heat" : "S_Off";
+    }
+
+    _parseSetting (body, name) {
+        const re = new RegExp(`${name}\\s*[:=]\\s*(-?\\d+(?:\\.\\d+)?)`, "i");
+        const match = (body || "").match(re);
+        if (match) {
+            return parseFloat(match[1]);
+        }
+        return this._parseFirstNumber(body);
+    }
+
+    _parseTemp (body) {
+        const labeled = this._parseTempLine(body, "tempr");
+        if (labeled !== null) {
+            return labeled;
+        }
+        return this._parseFirstNumber(body);
+    }
+
+    _parseTargetTemp (body) {
+        const target = this._parseTempLine(body, "temprT");
+        if (target !== null) {
+            return target;
+        }
+        const fallback = this._parseTempLine(body, "temps");
+        if (fallback !== null) {
+            return fallback;
+        }
+        return this._parseTemp(body);
+    }
+
+    _parseTempLine (body, label) {
+        const re = new RegExp(`\\b${label}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)\\s*([CF])?`, "i");
+        const match = (body || "").match(re);
+        if (!match) {
+            return null;
+        }
+        const value = parseFloat(match[1]);
+        const unit = (match[2] || "C").toUpperCase();
+        if (unit === "F") {
+            return this._fToC(value);
+        }
+        return value;
+    }
+
+    _fToC (f) {
+        return (f - 32) / 1.8;
+    }
+
+    _cToF (c) {
+        return (c * 1.8) + 32;
+    }
 }
+
+module.exports.StaggEKGAccessory = StaggEKGAccessory
