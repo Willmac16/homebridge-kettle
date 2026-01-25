@@ -35,7 +35,7 @@ class StaggEKGProWifiAccessory {
         const informationService = new Service.AccessoryInformation()
         informationService
             .setCharacteristic(Characteristic.Manufacturer, "Fellow")
-            .setCharacteristic(Characteristic.Model, "Stagg EKG Pro (Studio compatible)")
+            .setCharacteristic(Characteristic.Model, "Stagg EKG Pro")
             .setCharacteristic(Characteristic.SerialNumber, "123-456-789")
 
         this.service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
@@ -133,8 +133,15 @@ class StaggEKGProWifiAccessory {
                 callback(error);
                 return;
             }
-            this.service.updateCharacteristic(Characteristic.TargetTemperature, value)
-            callback(null, value)
+            // Kick out of Hold so UI reflects heating state
+            this._cliCommand(`setstate S_Heat`, (stateError) => {
+                if (stateError) {
+                    callback(stateError);
+                    return;
+                }
+                this.service.updateCharacteristic(Characteristic.TargetTemperature, value)
+                callback(null, value)
+            })
         })
     }
 
