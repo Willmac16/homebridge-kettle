@@ -1,73 +1,65 @@
 {
   "pluginAlias": "MyKettle",
-  "pluginType": "accessory",
+  "pluginType": "platform",
+  "singular": true,
   "schema": {
-    "title": "Fellow Stagg EKG Kettle",
     "type": "object",
     "properties": {
-      "accessory": {
-        "type": "string",
-        "title": "Accessory Type",
-        "enum": [
-          "MyKettle"
-        ],
-        "default": "MyKettle"
-      },
-      "connection": {
-        "type": "string",
-        "title": "Connection Type",
-        "oneOf": [
-          {
-            "title": "BLE bridge (EKG+ / EKG Pro)",
-            "enum": [
-              "ble"
-            ]
-          },
-          {
-            "title": "Wi-Fi CLI (EKG Pro)",
-            "enum": [
-              "wifi"
-            ]
-          }
-        ],
-        "default": "wifi"
-      },
       "name": {
         "type": "string",
         "title": "Name",
-        "description": "Accessory name shown in HomeKit. Use a unique name per kettle.",
-        "default": "Kettle",
-        "minLength": 1
+        "default": "Kettles"
       },
-      "url": {
-        "type": "string",
-        "title": "Base URL",
-        "description": "BLE: base URL of the bridge (no trailing slash). Wi-Fi CLI: base URL of the kettle (no /cli).",
-        "default": "http://192.168.1.32",
-        "pattern": "^https?://"
-      },
-      "minTemp": {
-        "type": "number",
-        "title": "Minimum Temperature (\u00b0C)",
-        "description": "Lowest target temperature exposed to HomeKit.",
-        "default": 40,
-        "minimum": 0,
-        "maximum": 100
-      },
-      "maxTemp": {
-        "type": "number",
-        "title": "Maximum Temperature (\u00b0C)",
-        "description": "Highest target temperature exposed to HomeKit.",
-        "default": 100,
-        "minimum": 0,
-        "maximum": 100
+      "kettles": {
+        "type": "array",
+        "title": "Kettles",
+        "items": {
+          "type": "object",
+          "title": "Kettle",
+          "properties": {
+            "name": {
+              "type": "string",
+              "title": "Name",
+              "description": "Accessory name shown in HomeKit.",
+              "default": "Kettle",
+              "minLength": 1
+            },
+            "connection": {
+              "type": "string",
+              "title": "Connection Type",
+              "oneOf": [
+                { "title": "Wi-Fi CLI (EKG Pro)", "enum": ["wifi"] },
+                { "title": "BLE bridge (EKG+ / EKG Pro)", "enum": ["ble"] }
+              ],
+              "default": "wifi"
+            },
+            "url": {
+              "type": "string",
+              "title": "Base URL",
+              "description": "Wi-Fi: base URL of the kettle (no trailing slash). BLE: base URL of the bridge.",
+              "default": "http://192.168.1.32",
+              "pattern": "^https?://"
+            },
+            "minTemp": {
+              "type": "number",
+              "title": "Minimum Temperature (°C)",
+              "description": "Lowest target temperature exposed to HomeKit.",
+              "default": 40,
+              "minimum": 0,
+              "maximum": 100
+            },
+            "maxTemp": {
+              "type": "number",
+              "title": "Maximum Temperature (°C)",
+              "description": "Highest target temperature exposed to HomeKit.",
+              "default": 100,
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          "required": ["name", "connection", "url"]
+        }
       }
-    },
-    "required": [
-      "accessory",
-      "connection",
-      "name",
-      "url"
-    ]
+    }
   }
 }

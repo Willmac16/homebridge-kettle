@@ -2,276 +2,194 @@
 
 const StaggEKGProClient = require('./lib/stagg-ekg-pro-client')
 
-let Service, Characteristic
-
-module.exports = (homebridge) => {
-    Service = homebridge.hap.Service
-    Characteristic = homebridge.hap.Characteristic
-    homebridge.registerAccessory("homebridge-kettle-pro", "MyKettle", StaggEKGAccessoryFactory)
+module.exports = (api) => {
+    api.registerDynamicPlatform('homebridge-kettle-pro', 'MyKettle', MyKettlePlatform);
 }
 
-class StaggEKGProWifiAccessory {
-    constructor (log, config) {
+class MyKettlePlatform {
+    constructor(log, config, api) {
         this.log = log;
         this.config = config;
-        this.service = new Service.Thermostat(this.config.name);
-        this.tempDisplayUnits = 0;
+        this.api = api;
+        this.accessories = new Map();
 
-        this.minTemp = (typeof this.config.minTemp === "number") ? this.config.minTemp : 40;
-        this.maxTemp = (typeof this.config.maxTemp === "number") ? this.config.maxTemp : 100;
-
-        this.client = new StaggEKGProClient(this.config.url);
+        api.on('didFinishLaunching', () => this._discoverDevices());
     }
 
-    getServices () {
-        const informationService = new Service.AccessoryInformation()
-        informationService
-            .setCharacteristic(Characteristic.Manufacturer, "Fellow")
-            .setCharacteristic(Characteristic.Model, "Stagg EKG Pro")
-            .setCharacteristic(Characteristic.SerialNumber, "123-456-789")
-
-        this.service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
-            .on('get', this.getTargetHeatingCoolingStateCharacteristicHandler.bind(this))
-            .on('set', this.setTargetHeatingCoolingStateCharacteristicHandler.bind(this))
-
-        this.service.getCharacteristic(Characteristic.TargetTemperature)
-            .on('get', this.getTargetTemperatureHandler.bind(this))
-            .on('set', this.setTargetTemperatureHandler.bind(this))
-
-        this.service.getCharacteristic(Characteristic.TargetTemperature)
-            .setProps({
-                maxValue: this.maxTemp,
-                minValue: this.minTemp,
-            })
-
-        this.service.getCharacteristic(Characteristic.CurrentTemperature)
-            .setProps({
-                maxValue: this.maxTemp,
-                // Allow room-temp readings below the target range.
-                minValue: 0,
-            })
-
-        this.service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
-            .setProps({value: this.tempDisplayUnits})
-
-        this.service.getCharacteristic(Characteristic.CurrentTemperature)
-            .on('get', this.getCurrentTemperatureHandler.bind(this))
-
-        this.service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
-            .on('get', this.getTemperatureDisplayUnitsHandler.bind(this))
-            .on('set', this.setTemperatureDisplayUnitsHandler.bind(this))
-
-        this.service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
-            .setProps({validValues: [0, 1]})
-
-        this.service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
-            .setProps({validValues: [0, 1]})
-
-        return [informationService, this.service]
+    configureAccessory(accessory) {
+        this.accessories.set(accessory.UUID, accessory);
     }
 
-    getTargetHeatingCoolingStateCharacteristicHandler (callback) {
-        this.log(`calling getTargetHeatingCoolingStateCharacteristicHandler`)
-        this.client.command("state", (error, body) => {
-            if (error) { callback(error); return; }
-            const value = this.client.parseState(body);
-            this.log(`getTargetHeatingCoolingState result:`, body)
-            if (value === null) { callback(new Error(`unrecognised state: ${body.trim()}`)); return; }
-            callback(null, value);
-        })
+    _discoverDevices() {
+        const kettles = this.config.kettles || [];
+        if (kettles.length === 0) {
+            this.log.warn('No kettles configured — add at least one entry under "kettles" in the platform config.');
+            return;
+        }
+        const seen = new Set();
+
+        for (const config of kettles) {
+            const uuid = this.api.hap.uuid.generate(config.name);
+            seen.add(uuid);
+
+            let accessory = this.accessories.get(uuid);
+            if (accessory) {
+                accessory.context.config = config;
+                this.api.updatePlatformAccessories([accessory]);
+            } else {
+                accessory = new this.api.platformAccessory(config.name, uuid);
+                accessory.context.config = config;
+                this.api.registerPlatformAccessories('homebridge-kettle-pro', 'MyKettle', [accessory]);
+                this.accessories.set(uuid, accessory);
+            }
+            this._setupAccessory(accessory);
+        }
+
+        for (const [uuid, accessory] of this.accessories) {
+            if (!seen.has(uuid)) {
+                this.api.unregisterPlatformAccessories('homebridge-kettle-pro', 'MyKettle', [accessory]);
+                this.accessories.delete(uuid);
+            }
+        }
     }
 
-    setTargetHeatingCoolingStateCharacteristicHandler (value, callback) {
-        this.log(`calling setTargetHeatingCoolingStateCharacteristicHandler`, value)
-        const state = this.client.stateForHomeKit(value);
-        this.client.command(`setstate ${state}`, (error) => {
-            if (error) { callback(error); return; }
-            callback(null, value);
-        })
-    }
-
-    getTargetTemperatureHandler (callback) {
-        this.log(`calling getTargetTemperatureHandler`)
-        this.client.command("state", (error, body) => {
-            if (error) { callback(error); return; }
-            const targetC = this.client.parseTargetTemp(body);
-            this.log(`getTargetTemperatureHandler result:`, body)
-            if (targetC === null) { callback(new Error(`could not parse target temp: ${body.trim()}`)); return; }
-            callback(null, targetC);
-        })
-    }
-
-    setTargetTemperatureHandler (value, callback) {
-        this.log(`calling setTargetTemperatureHandler`, value)
-        const targetF = Math.round(this.client.cToF(value));
-        Promise.all([
-            this.client.commandAsync(`setsetting settempr ${targetF}`),
-            this.client.commandAsync(`setstate S_Heat`),
-        ])
-            .then(() => callback(null, value))
-            .catch(err => callback(err));
-    }
-
-    getCurrentTemperatureHandler (callback) {
-        this.log(`calling getCurrentTemperatureHandler`)
-        this.client.command("state", (error, body) => {
-            if (error) { callback(error); return; }
-            const tempC = this.client.parseTemp(body);
-            this.log(`getCurrentTemperatureHandler result:`, body)
-            if (tempC === null) { callback(new Error(`could not parse current temp: ${body.trim()}`)); return; }
-            callback(null, tempC);
-        })
-    }
-
-    getTemperatureDisplayUnitsHandler (callback) {
-        this.log(`calling getTemperatureDisplayUnitsHandler`, this.tempDisplayUnits)
-        callback(null, this.tempDisplayUnits)
-    }
-
-    setTemperatureDisplayUnitsHandler (value, callback) {
-        this.log(`calling setTemperatureDisplayUnitsHandler`, value)
-        callback(null, this.tempDisplayUnits)
+    _setupAccessory(accessory) {
+        const config = accessory.context.config;
+        const mode = String(config.connection || config.mode || '').toLowerCase();
+        const { Service, Characteristic } = this.api.hap;
+        if (mode === 'wifi') {
+            new StaggEKGProWifiHandler(this.log, config, accessory, Service, Characteristic);
+        } else {
+            new StaggEKGPlusHandler(this.log, config, accessory, Service, Characteristic);
+        }
     }
 }
 
 
-function StaggEKGAccessoryFactory(log, config) {
-    const mode = String((config && (config.connection || config.mode)) || '').toLowerCase();
-    if (mode === 'wifi') {
-        return new StaggEKGProWifiAccessory(log, config);
-    } else {
-        return new StaggEKGPlusAccessory(log, config);
+class StaggEKGProWifiHandler {
+    constructor(log, config, accessory, Service, Characteristic) {
+        const client = new StaggEKGProClient(config.url);
+        const minTemp = typeof config.minTemp === 'number' ? config.minTemp : 40;
+        const maxTemp = typeof config.maxTemp === 'number' ? config.maxTemp : 100;
+
+        accessory.getService(Service.AccessoryInformation)
+            .setCharacteristic(Characteristic.Manufacturer, 'Fellow')
+            .setCharacteristic(Characteristic.Model, 'Stagg EKG Pro')
+            .setCharacteristic(Characteristic.SerialNumber, '123-456-789');
+
+        const service = accessory.getService(Service.Thermostat)
+            || accessory.addService(Service.Thermostat);
+
+        service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
+            .setProps({ validValues: [0, 1] })
+            .onGet(async () => {
+                const body = await client.commandAsync('state');
+                const value = client.parseState(body);
+                if (value === null) throw new Error(`unrecognised state: ${body.trim()}`);
+                return value;
+            })
+            .onSet(async (value) => {
+                await client.commandAsync(`setstate ${client.stateForHomeKit(value)}`);
+            });
+
+        service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
+            .setProps({ validValues: [0, 1] })
+            .onGet(async () => {
+                const body = await client.commandAsync('state');
+                const value = client.parseState(body);
+                if (value === null) throw new Error(`unrecognised state: ${body.trim()}`);
+                return value;
+            });
+
+        service.getCharacteristic(Characteristic.TargetTemperature)
+            .setProps({ minValue: minTemp, maxValue: maxTemp })
+            .onGet(async () => {
+                const body = await client.commandAsync('state');
+                const targetC = client.parseTargetTemp(body);
+                if (targetC === null) throw new Error(`could not parse target temp: ${body.trim()}`);
+                return targetC;
+            })
+            .onSet(async (value) => {
+                const targetF = Math.round(client.cToF(value));
+                await Promise.all([
+                    client.commandAsync(`setsetting settempr ${targetF}`),
+                    client.commandAsync(`setstate S_Heat`),
+                ]);
+            });
+
+        service.getCharacteristic(Characteristic.CurrentTemperature)
+            .setProps({ minValue: 0, maxValue: maxTemp })
+            .onGet(async () => {
+                const body = await client.commandAsync('state');
+                const tempC = client.parseTemp(body);
+                if (tempC === null) throw new Error(`could not parse current temp: ${body.trim()}`);
+                return tempC;
+            });
+
+        service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
+            .onGet(async () => 0)
+            .onSet(async () => {});
     }
 }
 
 
-class StaggEKGPlusAccessory {
-    constructor (log, config) {
-        this.log = log;
-        this.config = config;
-        this.service = new Service.Thermostat(this.config.name);
-        this.url = this.config.url;
-        this.tempDisplayUnits = 0;
-        this._fetch = (url, opts = {}) => fetch(url, { signal: AbortSignal.timeout(5000), ...opts });
+class StaggEKGPlusHandler {
+    constructor(log, config, accessory, Service, Characteristic) {
+        const url = config.url;
+        const minTemp = typeof config.minTemp === 'number' ? config.minTemp : 40;
+        const maxTemp = typeof config.maxTemp === 'number' ? config.maxTemp : 100;
+        const _fetch = (path, opts = {}) =>
+            fetch(url + path, { signal: AbortSignal.timeout(5000), ...opts });
 
-        this.minTemp = (typeof this.config.minTemp === "number") ? this.config.minTemp : 40;
-        this.maxTemp = (typeof this.config.maxTemp === "number") ? this.config.maxTemp : 100;
-    }
+        accessory.getService(Service.AccessoryInformation)
+            .setCharacteristic(Characteristic.Manufacturer, 'Fellow')
+            .setCharacteristic(Characteristic.Model, 'Stagg EKG+')
+            .setCharacteristic(Characteristic.SerialNumber, '123-456-789');
 
-    getServices () {
-        const informationService = new Service.AccessoryInformation()
-        informationService
-            .setCharacteristic(Characteristic.Manufacturer, "Fellow")
-            .setCharacteristic(Characteristic.Model, "Stagg EKG+")
-            .setCharacteristic(Characteristic.SerialNumber, "123-456-789")
+        const service = accessory.getService(Service.Thermostat)
+            || accessory.addService(Service.Thermostat);
 
-        this.service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
-            .on('get', this.getTargetHeatingCoolingStateCharacteristicHandler.bind(this))
-            .on('set', this.setTargetHeatingCoolingStateCharacteristicHandler.bind(this))
-
-        this.service.getCharacteristic(Characteristic.TargetTemperature)
-            .on('get', this.getTargetTemperatureHandler.bind(this))
-            .on('set', this.setTargetTemperatureHandler.bind(this))
-
-        this.service.getCharacteristic(Characteristic.TargetTemperature)
-            .setProps({
-                maxValue: this.maxTemp,
-                minValue: this.minTemp,
+        service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
+            .setProps({ validValues: [0, 1] })
+            .onGet(async () => {
+                const body = await _fetch('/state').then(r => r.text());
+                return parseFloat(body);
             })
+            .onSet(async (value) => {
+                await _fetch('/state', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'value=' + value,
+                });
+            });
 
-        this.service.getCharacteristic(Characteristic.CurrentTemperature)
-            .setProps({
-                maxValue: this.maxTemp,
-                minValue: 0,
-            })
-
-        this.service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
-            .setProps({value: this.tempDisplayUnits})
-
-        this.service.getCharacteristic(Characteristic.CurrentTemperature)
-            .on('get', this.getCurrentTemperatureHandler.bind(this))
-
-        this.service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
-            .on('get', this.getTemperatureDisplayUnitsHandler.bind(this))
-            .on('set', this.setTemperatureDisplayUnitsHandler.bind(this))
-
-        this.service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
-            .setProps({validValues: [0, 1]})
-
-        this.service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
-            .setProps({validValues: [0, 1]})
-
-        return [informationService, this.service]
-    }
-
-    getTargetHeatingCoolingStateCharacteristicHandler (callback) {
-        this.log(`calling getTargetHeatingCoolingStateCharacteristicHandler`)
-        this._fetch(this.url + "/state")
-            .then(res => res.text())
-            .then(body => {
-                this.log(`getTargetHeatingCoolingState result:`, body)
-                callback(null, parseFloat(body));
-            })
-            .catch(err => callback(err));
-    }
-
-    setTargetHeatingCoolingStateCharacteristicHandler (value, callback) {
-        this.log(`calling setTargetHeatingCoolingStateCharacteristicHandler`, value)
-        this._fetch(this.url + "/state", {
-            method: "POST",
-            headers: {"Content-Type": "application/x-www-form-urlencoded"},
-            body: "value=" + value
-        })
-            .then(() => callback(null, value))
-            .catch(err => callback(err));
-    }
-
-    getTargetTemperatureHandler (callback) {
-        this.log(`calling getTargetTemperatureHandler`)
-        this._fetch(this.url + "/target_temp")
-            .then(res => res.text())
-            .then(body => {
-                this.log(`getTargetTemperatureHandler result:`, body)
+        service.getCharacteristic(Characteristic.TargetTemperature)
+            .setProps({ minValue: minTemp, maxValue: maxTemp })
+            .onGet(async () => {
+                const body = await _fetch('/target_temp').then(r => r.text());
                 const tempC = (parseFloat(body) - 32) / 1.8;
-                if (isNaN(tempC)) { callback(new Error(`could not parse target temp: ${body}`)); return; }
-                callback(null, tempC);
+                if (isNaN(tempC)) throw new Error(`could not parse target temp: ${body}`);
+                return tempC;
             })
-            .catch(err => callback(err));
-    }
+            .onSet(async (value) => {
+                await _fetch('/target_temp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'value=' + value,
+                });
+            });
 
-    setTargetTemperatureHandler (value, callback) {
-        this.log(`calling setTargetTemperatureHandler`, value)
-        this._fetch(this.url + "/target_temp", {
-            method: "POST",
-            headers: {"Content-Type": "application/x-www-form-urlencoded"},
-            body: "value=" + value
-        })
-            .then(() => callback(null, value))
-            .catch(err => callback(err));
-    }
-
-    getCurrentTemperatureHandler (callback) {
-        this.log(`calling getCurrentTemperatureHandler`)
-        this._fetch(this.url + "/current_temp")
-            .then(res => res.text())
-            .then(body => {
-                this.log(`getCurrentTemperatureHandler result:`, body)
+        service.getCharacteristic(Characteristic.CurrentTemperature)
+            .setProps({ minValue: 0, maxValue: maxTemp })
+            .onGet(async () => {
+                const body = await _fetch('/current_temp').then(r => r.text());
                 const tempC = (parseFloat(body) - 32) / 1.8;
-                if (isNaN(tempC)) { callback(new Error(`could not parse current temp: ${body}`)); return; }
-                callback(null, tempC);
-            })
-            .catch(err => callback(err));
-    }
+                if (isNaN(tempC)) throw new Error(`could not parse current temp: ${body}`);
+                return tempC;
+            });
 
-    getTemperatureDisplayUnitsHandler (callback) {
-        this.log(`calling getTemperatureDisplayUnitsHandler`, this.tempDisplayUnits)
-        callback(null, this.tempDisplayUnits)
-    }
-
-    setTemperatureDisplayUnitsHandler (value, callback) {
-        this.log(`calling setTemperatureDisplayUnitsHandler`, value)
-        callback(null, this.tempDisplayUnits)
+        service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
+            .onGet(async () => 0)
+            .onSet(async () => {});
     }
 }
-
-module.exports.StaggEKGAccessoryFactory = StaggEKGAccessoryFactory

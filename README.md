@@ -15,23 +15,29 @@ npm install -g homebridge-kettle-pro
 ## Config
 
 ```json
-"accessories": [
+"platforms": [
     {
-        "accessory": "MyKettle",
-        "connection": "wifi",
-        "name": "Kettle",
-        "url": "http://192.168.1.32",
-        "minTemp": 40,
-        "maxTemp": 100
+        "platform": "MyKettle",
+        "name": "Kettles",
+        "kettles": [
+            {
+                "name": "Kettle",
+                "connection": "wifi",
+                "url": "http://192.168.1.32",
+                "minTemp": 40,
+                "maxTemp": 100
+            }
+        ]
     }
 ]
 ```
 
+Each entry in `kettles` becomes one accessory in HomeKit.
+
 | Field | Required | Description |
 |---|---|---|
-| `accessory` | yes | Must be `"MyKettle"` |
-| `connection` | yes | `"wifi"` for EKG Pro Wi-Fi, `"ble"` for BLE bridge |
 | `name` | yes | Name shown in HomeKit |
+| `connection` | yes | `"wifi"` for EKG Pro Wi-Fi, `"ble"` for BLE bridge |
 | `url` | yes | Base URL of the kettle (Wi-Fi) or bridge (BLE). No trailing slash. |
 | `minTemp` | no | Minimum target temp in °C (default: 40) |
 | `maxTemp` | no | Maximum target temp in °C (default: 100) |

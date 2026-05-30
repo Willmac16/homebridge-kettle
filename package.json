@@ -30,14 +30,14 @@
   },
   "engines": {
     "node": ">=22.0.0",
-    "homebridge": ">=1.0.0"
+    "homebridge": ">=1.3.0"
   },
   "scripts": {
     "test": "node test/parsers.test.js && node test/cli.test.js"
   },
   "homebridge": {
     "pluginAlias": "MyKettle",
-    "pluginType": "accessory",
+    "pluginType": "platform",
     "configSchema": "config.schema.json"
   }
 }
