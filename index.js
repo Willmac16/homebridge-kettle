@@ -10,7 +10,6 @@ module.exports = (homebridge) => {
     Service = homebridge.hap.Service
     Characteristic = homebridge.hap.Characteristic
     homebridge.registerAccessory("homebridge-kettle", "MyKettle", StaggEKGUnifiedAccessory)
-    homebridge.registerAccessory("homebridge-kettle", "MyKettleProWifi", StaggEKGProWifiAccessory)
 }
 
 class StaggEKGProWifiAccessory {
@@ -341,6 +340,3 @@ class StaggEKGPlusAccessory {
 }
 
 module.exports.StaggEKGUnifiedAccessory = StaggEKGUnifiedAccessory
-module.exports.StaggEKGPlusAccessory = StaggEKGPlusAccessory
-module.exports.StaggEKGProWifiAccessory = StaggEKGProWifiAccessory
-module.exports.StaggEKGAccessory = StaggEKGProWifiAccessory
