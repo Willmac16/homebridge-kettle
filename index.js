@@ -7,7 +7,7 @@ let Service, Characteristic
 module.exports = (homebridge) => {
     Service = homebridge.hap.Service
     Characteristic = homebridge.hap.Characteristic
-    homebridge.registerAccessory("homebridge-kettle", "MyKettle", StaggEKGUnifiedAccessory)
+    homebridge.registerAccessory("homebridge-kettle", "MyKettle", StaggEKGAccessoryFactory)
 }
 
 class StaggEKGProWifiAccessory {
@@ -165,13 +165,12 @@ class StaggEKGProWifiAccessory {
 }
 
 
-class StaggEKGUnifiedAccessory {
-    constructor (log, config) {
-        const mode = String((config && (config.connection || config.mode)) || '').toLowerCase();
-        const isWifi = (config && config.accessory === 'MyKettleProWifi') || mode === 'wifi';
-        if (isWifi) {
-            return new StaggEKGProWifiAccessory(log, config);
-        }
+function StaggEKGAccessoryFactory(log, config) {
+    const mode = String((config && (config.connection || config.mode)) || '').toLowerCase();
+    const isWifi = (config && config.accessory === 'MyKettleProWifi') || mode === 'wifi';
+    if (isWifi) {
+        return new StaggEKGProWifiAccessory(log, config);
+    } else {
         return new StaggEKGPlusAccessory(log, config);
     }
 }
@@ -309,4 +308,4 @@ class StaggEKGPlusAccessory {
     }
 }
 
-module.exports.StaggEKGUnifiedAccessory = StaggEKGUnifiedAccessory
+module.exports.StaggEKGAccessoryFactory = StaggEKGAccessoryFactory
