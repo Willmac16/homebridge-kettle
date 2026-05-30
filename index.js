@@ -7,7 +7,7 @@ let Service, Characteristic
 module.exports = (homebridge) => {
     Service = homebridge.hap.Service
     Characteristic = homebridge.hap.Characteristic
-    homebridge.registerAccessory("homebridge-kettle", "MyKettle", StaggEKGAccessoryFactory)
+    homebridge.registerAccessory("homebridge-kettle-pro", "MyKettle", StaggEKGAccessoryFactory)
 }
 
 class StaggEKGProWifiAccessory {

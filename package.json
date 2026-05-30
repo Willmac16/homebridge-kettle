@@ -1,17 +1,32 @@
 {
-  "name": "homebridge-kettle",
-  "version": "0.0.1",
-  "description": "This is a Homebridge plugin for connecting the Fellow Stagg EKG+",
-  "license": "ISC",
+  "name": "homebridge-kettle-pro",
+  "version": "1.0.0",
+  "description": "Homebridge plugin for Fellow Stagg EKG Pro (Wi-Fi) and EKG+ (BLE bridge)",
+  "author": "Will MacCormack",
+  "contributors": [
+    "Calvin McLean (original author)"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "homepage": "https://github.com/Willmac16/homebridge-kettle#readme",
+  "files": [
+    "index.js",
+    "lib/",
+    "config.schema.json"
+  ],
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "fellow",
+    "stagg",
+    "kettle",
+    "homekit"
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/calvinmclean/homebridge-kettle.git"
+    "url": "git://github.com/Willmac16/homebridge-kettle.git"
   },
   "bugs": {
-    "url": "http://github.com/calvinmclean/homebridge-kettle/issues"
+    "url": "http://github.com/Willmac16/homebridge-kettle/issues"
   },
   "engines": {
     "node": ">=22.0.0",
