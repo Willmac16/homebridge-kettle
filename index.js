@@ -2,6 +2,7 @@
 
 const request = require('request')
 const url = require('url')
+const StaggEKGProClient = require('./lib/stagg-ekg-pro-client')
 
 let Service, Characteristic
 
@@ -17,18 +18,12 @@ class StaggEKGProWifiAccessory {
         this.log = log;
         this.config = config;
         this.service = new Service.Thermostat(this.config.name);
-        this.url = this.config.url;
         this.tempDisplayUnits = 0;
 
         this.minTemp = (typeof this.config.minTemp === "number") ? this.config.minTemp : 40;
         this.maxTemp = (typeof this.config.maxTemp === "number") ? this.config.maxTemp : 100;
 
-        const baseUrl = (this.url || "").replace(/\?.*$/, "");
-        if (baseUrl.endsWith("/cli")) {
-            this.cliUrl = baseUrl;
-        } else {
-            this.cliUrl = baseUrl.replace(/\/+$/, "") + "/cli";
-        }
+        this.client = new StaggEKGProClient(this.config.url);
     }
 
     getServices () {
@@ -82,12 +77,12 @@ class StaggEKGProWifiAccessory {
 
     getTargetHeatingCoolingStateCharacteristicHandler (callback) {
         this.log(`calling getTargetHeatingCoolingStateCharacteristicHandler`)
-        this._cliCommand("state", (error, body) => {
+        this.client.command("state", (error, body) => {
             if (error) {
                 callback(error);
                 return;
             }
-            const value = this._parseState(body);
+            const value = this.client.parseState(body);
             this.log(`getTargetHeatingCoolingState result:`, body)
             if (value !== null) {
                 this.service.updateCharacteristic(Characteristic.TargetHeatingCoolingState, value)
@@ -98,8 +93,8 @@ class StaggEKGProWifiAccessory {
 
     setTargetHeatingCoolingStateCharacteristicHandler (value, callback) {
         this.log(`calling setTargetHeatingCoolingStateCharacteristicHandler`, value)
-        const state = this._stateForHomeKit(value);
-        this._cliCommand(`setstate ${state}`, (error) => {
+        const state = this.client.stateForHomeKit(value);
+        this.client.command(`setstate ${state}`, (error) => {
             if (error) {
                 callback(error);
                 return;
@@ -111,12 +106,12 @@ class StaggEKGProWifiAccessory {
 
     getTargetTemperatureHandler (callback) {
         this.log(`calling getTargetTemperatureHandler`)
-        this._cliCommand("state", (error, body) => {
+        this.client.command("state", (error, body) => {
             if (error) {
                 callback(error);
                 return;
             }
-            const targetC = this._parseTargetTemp(body);
+            const targetC = this.client.parseTargetTemp(body);
             this.log(`getTargetTemperatureHandler result:`, body)
             if (targetC !== null) {
                 this.service.updateCharacteristic(Characteristic.TargetTemperature, targetC)
@@ -127,14 +122,14 @@ class StaggEKGProWifiAccessory {
 
     setTargetTemperatureHandler (value, callback) {
         this.log(`calling setTargetTemperatureHandler`, value)
-        const targetF = Math.round(this._cToF(value));
-        this._cliCommand(`setsetting settempr ${targetF}`, (error) => {
+        const targetF = Math.round(this.client.cToF(value));
+        this.client.command(`setsetting settempr ${targetF}`, (error) => {
             if (error) {
                 callback(error);
                 return;
             }
             // Kick out of Hold so UI reflects heating state
-            this._cliCommand(`setstate S_Heat`, (stateError) => {
+            this.client.command(`setstate S_Heat`, (stateError) => {
                 if (stateError) {
                     callback(stateError);
                     return;
@@ -147,12 +142,12 @@ class StaggEKGProWifiAccessory {
 
     getCurrentTemperatureHandler (callback) {
         this.log(`calling getCurrentTemperatureHandler`)
-        this._cliCommand("state", (error, body) => {
+        this.client.command("state", (error, body) => {
             if (error) {
                 callback(error);
                 return;
             }
-            const tempC = this._parseTemp(body);
+            const tempC = this.client.parseTemp(body);
             this.log(`getCurrentTemperatureHandler result:`, body)
             if (tempC !== null) {
                 this.service.updateCharacteristic(Characteristic.CurrentTemperature, tempC)
@@ -169,100 +164,6 @@ class StaggEKGProWifiAccessory {
     setTemperatureDisplayUnitsHandler (value, callback) {
         this.log(`calling setTemperatureDisplayUnitsHandler`, value)
         callback(null, this.tempDisplayUnits)
-    }
-
-    _cliCommand (cmd, callback) {
-        if (!this.cliUrl || this.cliUrl === "/cli") {
-            callback(new Error("Missing kettle url; set config.url to the kettle base URL."));
-            return;
-        }
-        const encodedCmd = this._encodeCliCommand(cmd);
-        request({
-            url: `${this.cliUrl}?cmd=${encodedCmd}`,
-            method: "GET"
-        }, function (error, response, body) {
-            if (error) {
-                callback(error);
-                return;
-            }
-            callback(null, body)
-        });
-    }
-
-    _encodeCliCommand (cmd) {
-        // Match kettle.sh behavior: replace spaces with '+' only.
-        return String(cmd).replace(/ /g, "+");
-    }
-
-    _parseFirstNumber (body) {
-        const match = (body || "").match(/-?\d+(?:\.\d+)?/);
-        return match ? parseFloat(match[0]) : null;
-    }
-
-    _parseState (body) {
-        const text = (body || "").trim();
-        if (/\bS_(Heat|Hold|StartupToTempr|Calib_(Started|finish))\b/i.test(text)) {
-            return 1;
-        }
-        if (/S_Off/i.test(text)) {
-            return 0;
-        }
-        return null;
-    }
-
-    _stateForHomeKit (value) {
-        return value === 1 ? "S_Heat" : "S_Off";
-    }
-
-    _parseSetting (body, name) {
-        const re = new RegExp(`${name}\\s*[:=]\\s*(-?\\d+(?:\\.\\d+)?)`, "i");
-        const match = (body || "").match(re);
-        if (match) {
-            return parseFloat(match[1]);
-        }
-        return this._parseFirstNumber(body);
-    }
-
-    _parseTemp (body) {
-        const labeled = this._parseTempLine(body, "tempr");
-        if (labeled !== null) {
-            return labeled;
-        }
-        return this._parseFirstNumber(body);
-    }
-
-    _parseTargetTemp (body) {
-        const target = this._parseTempLine(body, "temprT");
-        if (target !== null) {
-            return target;
-        }
-        const fallback = this._parseTempLine(body, "temps");
-        if (fallback !== null) {
-            return fallback;
-        }
-        return this._parseTemp(body);
-    }
-
-    _parseTempLine (body, label) {
-        const re = new RegExp(`\\b${label}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)\\s*([CF])?`, "i");
-        const match = (body || "").match(re);
-        if (!match) {
-            return null;
-        }
-        const value = parseFloat(match[1]);
-        const unit = (match[2] || "C").toUpperCase();
-        if (unit === "F") {
-            return this._fToC(value);
-        }
-        return value;
-    }
-
-    _fToC (f) {
-        return (f - 32) / 1.8;
-    }
-
-    _cToF (c) {
-        return (c * 1.8) + 32;
     }
 }
 

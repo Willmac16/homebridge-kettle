@@ -1,28 +1,24 @@
 'use strict'
 
 const assert = require('assert')
-const { StaggEKGAccessory } = require('../index')
+const StaggEKGProClient = require('../lib/stagg-ekg-pro-client')
 const { test, banner } = require('./_harness')
 
-function makeInstance() {
-  return Object.create(StaggEKGAccessory.prototype)
-}
-
 banner('cli.test.js')
-const accessory = makeInstance()
+const client = new StaggEKGProClient('http://kettle.local')
 
 test('encode: state', () => {
-  assert.strictEqual(accessory._encodeCliCommand('state'), 'state')
+  assert.strictEqual(client._encode('state'), 'state')
 })
 
 test('encode: setstate S_Heat', () => {
-  assert.strictEqual(accessory._encodeCliCommand('setstate S_Heat'), 'setstate+S_Heat')
+  assert.strictEqual(client._encode('setstate S_Heat'), 'setstate+S_Heat')
 })
 
 test('encode: setsetting settempr 205', () => {
-  assert.strictEqual(accessory._encodeCliCommand('setsetting settempr 205'), 'setsetting+settempr+205')
+  assert.strictEqual(client._encode('setsetting settempr 205'), 'setsetting+settempr+205')
 })
 
 test('encode: ss S_StartupToTempr', () => {
-  assert.strictEqual(accessory._encodeCliCommand('ss S_StartupToTempr'), 'ss+S_StartupToTempr')
+  assert.strictEqual(client._encode('ss S_StartupToTempr'), 'ss+S_StartupToTempr')
 })

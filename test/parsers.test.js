@@ -1,12 +1,8 @@
 'use strict'
 
 const assert = require('assert')
-const { StaggEKGAccessory } = require('../index')
+const StaggEKGProClient = require('../lib/stagg-ekg-pro-client')
 const { test, banner } = require('./_harness')
-
-function makeInstance() {
-  return Object.create(StaggEKGAccessory.prototype)
-}
 
 const STATE_OUTPUT = `
             <form action="cli" method="GET">
@@ -170,52 +166,52 @@ I (2450950) Cli: command 'state' ret 0
 `
 
 banner('parsers.test.js')
-const accessory = makeInstance()
+const client = new StaggEKGProClient('http://kettle.local')
 
 test('parse state from state output', () => {
-  assert.strictEqual(accessory._parseState(STATE_OUTPUT), 0)
+  assert.strictEqual(client.parseState(STATE_OUTPUT), 0)
 })
 
 test('parse state from heating state output', () => {
-  assert.strictEqual(accessory._parseState(STATE_OUTPUT_HEAT), 1)
+  assert.strictEqual(client.parseState(STATE_OUTPUT_HEAT), 1)
 })
 
 test('parse state from hold state output', () => {
-  assert.strictEqual(accessory._parseState(STATE_OUTPUT_HOLD), 1)
+  assert.strictEqual(client.parseState(STATE_OUTPUT_HOLD), 1)
 })
 
 test('parse state from hold+menu state output', () => {
-  assert.strictEqual(accessory._parseState(STATE_OUTPUT_HOLD_MENU), 1)
+  assert.strictEqual(client.parseState(STATE_OUTPUT_HOLD_MENU), 1)
 })
 
 test('parse state from startup state output', () => {
-  assert.strictEqual(accessory._parseState(STATE_OUTPUT_STARTUP), 1)
+  assert.strictEqual(client.parseState(STATE_OUTPUT_STARTUP), 1)
 })
 
 test('parse state from calibration state output', () => {
-  assert.strictEqual(accessory._parseState(STATE_OUTPUT_CALIB), 1)
+  assert.strictEqual(client.parseState(STATE_OUTPUT_CALIB), 1)
 })
 
 test('parse state from calibration finish state output', () => {
-  assert.strictEqual(accessory._parseState(STATE_OUTPUT_CALIB_FINISH), 1)
+  assert.strictEqual(client.parseState(STATE_OUTPUT_CALIB_FINISH), 1)
 })
 
 test('parse temp from state output', () => {
-  assert.strictEqual(accessory._parseTemp(STATE_OUTPUT), 50.491463)
+  assert.strictEqual(client.parseTemp(STATE_OUTPUT), 50.491463)
 })
 
 test('parse target temp from state output', () => {
-  assert.strictEqual(accessory._parseTargetTemp(STATE_OUTPUT), 96.111115)
+  assert.strictEqual(client.parseTargetTemp(STATE_OUTPUT), 96.111115)
 })
 
 test('parse temp in F to C', () => {
-  assert.strictEqual(accessory._parseTempLine('tempr=212 F', 'tempr'), 100)
+  assert.strictEqual(client._parseTempLine('tempr=212 F', 'tempr'), 100)
 })
 
 test('parse state from S_Heat string', () => {
-  assert.strictEqual(accessory._parseState('mode=S_Heat'), 1)
+  assert.strictEqual(client.parseState('mode=S_Heat'), 1)
 })
 
 test('parse first number fallback', () => {
-  assert.strictEqual(accessory._parseFirstNumber('x=-12.5 y=3'), -12.5)
+  assert.strictEqual(client._parseFirstNumber('x=-12.5 y=3'), -12.5)
 })
