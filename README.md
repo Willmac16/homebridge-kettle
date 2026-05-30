@@ -17,7 +17,7 @@ npm install -g homebridge-kettle-pro
 ```json
 "platforms": [
     {
-        "platform": "MyKettle",
+        "platform": "StaggKettle",
         "name": "Kettles",
         "kettles": [
             {

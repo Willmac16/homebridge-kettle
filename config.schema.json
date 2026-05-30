@@ -1,7 +1,8 @@
 {
-  "pluginAlias": "MyKettle",
+  "pluginAlias": "StaggKettle",
   "pluginType": "platform",
   "singular": true,
+  "headerDisplay": "Homebridge plugin for Fellow Stagg kettles. See the [README](https://github.com/Willmac16/homebridge-kettle#readme) for setup instructions.",
   "schema": {
     "type": "object",
     "properties": {

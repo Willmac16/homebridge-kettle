@@ -3,10 +3,10 @@
 const StaggEKGProClient = require('./lib/stagg-ekg-pro-client')
 
 module.exports = (api) => {
-    api.registerDynamicPlatform('homebridge-kettle-pro', 'MyKettle', MyKettlePlatform);
+    api.registerPlatform('homebridge-kettle-pro', 'StaggKettle', StaggKettlePlatform);
 }
 
-class MyKettlePlatform {
+class StaggKettlePlatform {
     constructor(log, config, api) {
         this.log = log;
         this.config = config;
@@ -24,7 +24,6 @@ class MyKettlePlatform {
         const kettles = this.config.kettles || [];
         if (kettles.length === 0) {
             this.log.warn('No kettles configured — add at least one entry under "kettles" in the platform config.');
-            return;
         }
         const seen = new Set();
 
@@ -39,7 +38,7 @@ class MyKettlePlatform {
             } else {
                 accessory = new this.api.platformAccessory(config.name, uuid);
                 accessory.context.config = config;
-                this.api.registerPlatformAccessories('homebridge-kettle-pro', 'MyKettle', [accessory]);
+                this.api.registerPlatformAccessories('homebridge-kettle-pro', 'StaggKettle', [accessory]);
                 this.accessories.set(uuid, accessory);
             }
             this._setupAccessory(accessory);
@@ -47,7 +46,7 @@ class MyKettlePlatform {
 
         for (const [uuid, accessory] of this.accessories) {
             if (!seen.has(uuid)) {
-                this.api.unregisterPlatformAccessories('homebridge-kettle-pro', 'MyKettle', [accessory]);
+                this.api.unregisterPlatformAccessories('homebridge-kettle-pro', 'StaggKettle', [accessory]);
                 this.accessories.delete(uuid);
             }
         }
