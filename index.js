@@ -1,7 +1,5 @@
 'use strict'
 
-const request = require('request')
-const url = require('url')
 const StaggEKGProClient = require('./lib/stagg-ekg-pro-client')
 
 let Service, Characteristic
@@ -241,91 +239,63 @@ class StaggEKGPlusAccessory {
 
     getTargetHeatingCoolingStateCharacteristicHandler (callback) {
         this.log(`calling getTargetHeatingCoolingStateCharacteristicHandler`)
-        var self = this;
-        request({
-            url: self.url + "/state",
-            method: "GET"
-        }, function (error, response, body) {
-            if (error) {
-                callback(error);
-                return;
-            }
-            self.log(`getTargetHeatingCoolingState result:`, body)
-            self.service.updateCharacteristic(Characteristic.TargetHeatingCoolingState, body)
-            callback(null, self.service.getCharacteristic(Characteristic.TargetHeatingCoolingState).value)
-        });
+        fetch(this.url + "/state")
+            .then(res => res.text())
+            .then(body => {
+                this.log(`getTargetHeatingCoolingState result:`, body)
+                this.service.updateCharacteristic(Characteristic.TargetHeatingCoolingState, body)
+                callback(null, this.service.getCharacteristic(Characteristic.TargetHeatingCoolingState).value)
+            })
+            .catch(err => callback(err));
     }
 
     setTargetHeatingCoolingStateCharacteristicHandler (value, callback) {
         this.service.updateCharacteristic(Characteristic.TargetHeatingCoolingState, value)
         this.log(`calling setTargetHeatingCoolingStateCharacteristicHandler`, value)
-        var self = this;
-        request({
-            url: self.url + "/state",
+        const body = "value=" + value;
+        fetch(this.url + "/state", {
             method: "POST",
-            json: false,
-            body: "value=" + value,
-            headers: {"Content-Length": 7}
-        }, function (error, response, body){
-            if (error) {
-                callback(error);
-                return;
-            }
-            callback(null, value)
-        });
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body
+        })
+            .then(() => callback(null, value))
+            .catch(err => callback(err));
     }
 
     getTargetTemperatureHandler (callback) {
         this.log(`calling getTargetTemperatureHandler`)
-        var self = this;
-        request({
-            url: self.url + "/target_temp",
-            method: "GET"
-        }, function (error, response, body) {
-            if (error) {
-                callback(error);
-                return;
-            }
-            self.log(`getTargetTemperatureHandler result:`, body)
-            self.service.updateCharacteristic(Characteristic.TargetTemperature, (body - 32)/1.8000)
-            callback(null, self.service.getCharacteristic(Characteristic.TargetTemperature).value)
-        });
+        fetch(this.url + "/target_temp")
+            .then(res => res.text())
+            .then(body => {
+                this.log(`getTargetTemperatureHandler result:`, body)
+                this.service.updateCharacteristic(Characteristic.TargetTemperature, (parseFloat(body) - 32) / 1.8)
+                callback(null, this.service.getCharacteristic(Characteristic.TargetTemperature).value)
+            })
+            .catch(err => callback(err));
     }
 
     setTargetTemperatureHandler (value, callback) {
         this.service.updateCharacteristic(Characteristic.TargetTemperature, value)
         this.log(`calling setTargetTemperatureHandler`, value)
-        var self = this;
-        request({
-            url: self.url + "/target_temp",
+        fetch(this.url + "/target_temp", {
             method: "POST",
-            json: false,
-            body: "value=" + value.toString(),
-            headers: {"Content-Length": 6 + value.toString().length}
-        }, function (error, response, body){
-            if (error) {
-                callback(error);
-                return;
-            }
-            callback(null, value)
-        });
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: "value=" + value
+        })
+            .then(() => callback(null, value))
+            .catch(err => callback(err));
     }
 
     getCurrentTemperatureHandler (callback) {
         this.log(`calling getCurrentTemperatureHandler`)
-        var self = this;
-        request({
-            url: self.url + "/current_temp",
-            method: "GET"
-        }, function (error, response, body) {
-            if (error) {
-                callback(error);
-                return;
-            }
-            self.log(`getCurrentTemperatureHandler result:`, body)
-            self.service.updateCharacteristic(Characteristic.CurrentTemperature, (body - 32)/1.8000)
-            callback(null, self.service.getCharacteristic(Characteristic.CurrentTemperature).value)
-        });
+        fetch(this.url + "/current_temp")
+            .then(res => res.text())
+            .then(body => {
+                this.log(`getCurrentTemperatureHandler result:`, body)
+                this.service.updateCharacteristic(Characteristic.CurrentTemperature, (parseFloat(body) - 32) / 1.8)
+                callback(null, this.service.getCharacteristic(Characteristic.CurrentTemperature).value)
+            })
+            .catch(err => callback(err));
     }
 
     getTemperatureDisplayUnitsHandler (callback) {
