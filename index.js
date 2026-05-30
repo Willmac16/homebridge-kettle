@@ -341,7 +341,7 @@ class StaggEKGPlusAccessory {
 
     getTargetHeatingCoolingStateCharacteristicHandler (callback) {
         this.log(`calling getTargetHeatingCoolingStateCharacteristicHandler`)
-        const self = this;
+        var self = this;
         request({
             url: self.url + "/state",
             method: "GET"
@@ -359,7 +359,7 @@ class StaggEKGPlusAccessory {
     setTargetHeatingCoolingStateCharacteristicHandler (value, callback) {
         this.service.updateCharacteristic(Characteristic.TargetHeatingCoolingState, value)
         this.log(`calling setTargetHeatingCoolingStateCharacteristicHandler`, value)
-        const self = this;
+        var self = this;
         request({
             url: self.url + "/state",
             method: "POST",
@@ -377,7 +377,7 @@ class StaggEKGPlusAccessory {
 
     getTargetTemperatureHandler (callback) {
         this.log(`calling getTargetTemperatureHandler`)
-        const self = this;
+        var self = this;
         request({
             url: self.url + "/target_temp",
             method: "GET"
@@ -387,7 +387,7 @@ class StaggEKGPlusAccessory {
                 return;
             }
             self.log(`getTargetTemperatureHandler result:`, body)
-            self.service.updateCharacteristic(Characteristic.TargetTemperature, (body - 32) / 1.8000)
+            self.service.updateCharacteristic(Characteristic.TargetTemperature, (body - 32)/1.8000)
             callback(null, self.service.getCharacteristic(Characteristic.TargetTemperature).value)
         });
     }
@@ -395,7 +395,7 @@ class StaggEKGPlusAccessory {
     setTargetTemperatureHandler (value, callback) {
         this.service.updateCharacteristic(Characteristic.TargetTemperature, value)
         this.log(`calling setTargetTemperatureHandler`, value)
-        const self = this;
+        var self = this;
         request({
             url: self.url + "/target_temp",
             method: "POST",
@@ -413,7 +413,7 @@ class StaggEKGPlusAccessory {
 
     getCurrentTemperatureHandler (callback) {
         this.log(`calling getCurrentTemperatureHandler`)
-        const self = this;
+        var self = this;
         request({
             url: self.url + "/current_temp",
             method: "GET"
@@ -423,7 +423,7 @@ class StaggEKGPlusAccessory {
                 return;
             }
             self.log(`getCurrentTemperatureHandler result:`, body)
-            self.service.updateCharacteristic(Characteristic.CurrentTemperature, (body - 32) / 1.8000)
+            self.service.updateCharacteristic(Characteristic.CurrentTemperature, (body - 32)/1.8000)
             callback(null, self.service.getCharacteristic(Characteristic.CurrentTemperature).value)
         });
     }
