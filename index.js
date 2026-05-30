@@ -168,7 +168,7 @@ class StaggEKGProWifiAccessory {
 class StaggEKGUnifiedAccessory {
     constructor (log, config) {
         const mode = String((config && (config.connection || config.mode)) || '').toLowerCase();
-        const isWifi = (config && config.accessory === 'MyKettleProWifi') || mode === 'wifi' || mode === 'cli';
+        const isWifi = (config && config.accessory === 'MyKettleProWifi') || mode === 'wifi';
         if (isWifi) {
             return new StaggEKGProWifiAccessory(log, config);
         }
