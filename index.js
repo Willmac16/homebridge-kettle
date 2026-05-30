@@ -42,7 +42,6 @@ class StaggEKGProWifiAccessory {
             .setProps({
                 maxValue: this.maxTemp,
                 minValue: this.minTemp,
-                unit: 1
             })
 
         this.service.getCharacteristic(Characteristic.CurrentTemperature)
@@ -50,7 +49,6 @@ class StaggEKGProWifiAccessory {
                 maxValue: this.maxTemp,
                 // Allow room-temp readings below the target range.
                 minValue: 0,
-                unit: 1
             })
 
         this.service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
@@ -167,8 +165,7 @@ class StaggEKGProWifiAccessory {
 
 function StaggEKGAccessoryFactory(log, config) {
     const mode = String((config && (config.connection || config.mode)) || '').toLowerCase();
-    const isWifi = (config && config.accessory === 'MyKettleProWifi') || mode === 'wifi';
-    if (isWifi) {
+    if (mode === 'wifi') {
         return new StaggEKGProWifiAccessory(log, config);
     } else {
         return new StaggEKGPlusAccessory(log, config);
@@ -207,14 +204,12 @@ class StaggEKGPlusAccessory {
             .setProps({
                 maxValue: this.maxTemp,
                 minValue: this.minTemp,
-                unit: 1
             })
 
         this.service.getCharacteristic(Characteristic.CurrentTemperature)
             .setProps({
                 maxValue: this.maxTemp,
                 minValue: 0,
-                unit: 1
             })
 
         this.service.getCharacteristic(Characteristic.TemperatureDisplayUnits)

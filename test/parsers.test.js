@@ -215,3 +215,23 @@ test('parse state from S_Heat string', () => {
 test('parse first number fallback', () => {
   assert.strictEqual(client._parseFirstNumber('x=-12.5 y=3'), -12.5)
 })
+
+banner('edge cases')
+
+// parseTargetTemp returns null when neither temprT nor temps is present
+test('parseTargetTemp returns null when no target fields present', () => {
+  const body = 'tempr=75.5 C\nmode=S_Heat'
+  assert.strictEqual(client.parseTargetTemp(body), null)
+})
+
+// parseState must not match "S_Offline" as off — requires \b word boundary on S_Off
+test('parseState does not match S_Offline as off', () => {
+  assert.strictEqual(client.parseState('mode=S_Offline'), null)
+})
+
+// stateForHomeKit uses strict equality — truthy values other than 1 map to S_Off
+test('stateForHomeKit: value=true (boolean) maps to S_Off not S_Heat', () => {
+  // HomeKit always sends integers, but documents the strict-equality dependency
+  assert.strictEqual(client.stateForHomeKit(true), 'S_Off')
+  assert.strictEqual(client.stateForHomeKit(1), 'S_Heat')
+})

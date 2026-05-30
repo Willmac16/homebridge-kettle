@@ -22,3 +22,14 @@ test('encode: setsetting settempr 205', () => {
 test('encode: ss S_StartupToTempr', () => {
   assert.strictEqual(client._encode('ss S_StartupToTempr'), 'ss+S_StartupToTempr')
 })
+
+banner('edge cases')
+
+// _encode now uses encodeURIComponent per token
+test('encode: ampersand is percent-encoded', () => {
+  assert.strictEqual(client._encode('cmd&extra=bad'), 'cmd%26extra%3Dbad')
+})
+
+test('encode: equals sign is percent-encoded', () => {
+  assert.strictEqual(client._encode('setsetting key=val'), 'setsetting+key%3Dval')
+})
