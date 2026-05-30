@@ -104,14 +104,12 @@ class StaggEKGProWifiAccessory {
     setTargetTemperatureHandler (value, callback) {
         this.log(`calling setTargetTemperatureHandler`, value)
         const targetF = Math.round(this.client.cToF(value));
-        this.client.command(`setsetting settempr ${targetF}`, (error) => {
-            if (error) { callback(error); return; }
-            // Kick out of Hold so UI reflects heating state
-            this.client.command(`setstate S_Heat`, (stateError) => {
-                if (stateError) { callback(stateError); return; }
-                callback(null, value);
-            })
-        })
+        Promise.all([
+            this.client.commandAsync(`setsetting settempr ${targetF}`),
+            this.client.commandAsync(`setstate S_Heat`),
+        ])
+            .then(() => callback(null, value))
+            .catch(err => callback(err));
     }
 
     getCurrentTemperatureHandler (callback) {
@@ -154,6 +152,7 @@ class StaggEKGPlusAccessory {
         this.service = new Service.Thermostat(this.config.name);
         this.url = this.config.url;
         this.tempDisplayUnits = 0;
+        this._fetch = (url, opts = {}) => fetch(url, { signal: AbortSignal.timeout(5000), ...opts });
 
         this.minTemp = (typeof this.config.minTemp === "number") ? this.config.minTemp : 40;
         this.maxTemp = (typeof this.config.maxTemp === "number") ? this.config.maxTemp : 100;
@@ -207,7 +206,7 @@ class StaggEKGPlusAccessory {
 
     getTargetHeatingCoolingStateCharacteristicHandler (callback) {
         this.log(`calling getTargetHeatingCoolingStateCharacteristicHandler`)
-        fetch(this.url + "/state")
+        this._fetch(this.url + "/state")
             .then(res => res.text())
             .then(body => {
                 this.log(`getTargetHeatingCoolingState result:`, body)
@@ -218,7 +217,7 @@ class StaggEKGPlusAccessory {
 
     setTargetHeatingCoolingStateCharacteristicHandler (value, callback) {
         this.log(`calling setTargetHeatingCoolingStateCharacteristicHandler`, value)
-        fetch(this.url + "/state", {
+        this._fetch(this.url + "/state", {
             method: "POST",
             headers: {"Content-Type": "application/x-www-form-urlencoded"},
             body: "value=" + value
@@ -229,7 +228,7 @@ class StaggEKGPlusAccessory {
 
     getTargetTemperatureHandler (callback) {
         this.log(`calling getTargetTemperatureHandler`)
-        fetch(this.url + "/target_temp")
+        this._fetch(this.url + "/target_temp")
             .then(res => res.text())
             .then(body => {
                 this.log(`getTargetTemperatureHandler result:`, body)
@@ -242,7 +241,7 @@ class StaggEKGPlusAccessory {
 
     setTargetTemperatureHandler (value, callback) {
         this.log(`calling setTargetTemperatureHandler`, value)
-        fetch(this.url + "/target_temp", {
+        this._fetch(this.url + "/target_temp", {
             method: "POST",
             headers: {"Content-Type": "application/x-www-form-urlencoded"},
             body: "value=" + value
@@ -253,7 +252,7 @@ class StaggEKGPlusAccessory {
 
     getCurrentTemperatureHandler (callback) {
         this.log(`calling getCurrentTemperatureHandler`)
-        fetch(this.url + "/current_temp")
+        this._fetch(this.url + "/current_temp")
             .then(res => res.text())
             .then(body => {
                 this.log(`getCurrentTemperatureHandler result:`, body)
