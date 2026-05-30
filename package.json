@@ -1,6 +1,6 @@
 {
   "name": "homebridge-kettle-pro",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Homebridge plugin for Fellow Stagg EKG Pro (Wi-Fi) and EKG+ (BLE bridge)",
   "author": "Will MacCormack",
   "contributors": [
@@ -30,7 +30,7 @@
   },
   "engines": {
     "node": ">=22.0.0",
-    "homebridge": ">=1.3.0"
+    "homebridge": ">=1.3.0 <3.0.0"
   },
   "scripts": {
     "test": "node test/parsers.test.js && node test/cli.test.js"
