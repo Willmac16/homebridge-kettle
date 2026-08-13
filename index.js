@@ -64,6 +64,29 @@ class StaggKettlePlatform {
     }
 }
 
+function getPollIntervals(config) {
+    const heating = typeof config.pollIntervalHeating === 'number' ? config.pollIntervalHeating : 10000;
+    const idle = typeof config.pollIntervalIdle === 'number' ? config.pollIntervalIdle : 300000;
+    return { heating, idle };
+}
+
+function startTempPolling(log, config, service, updateTempFn) {
+    const { heating, idle } = getPollIntervals(config);
+
+    function poll() {
+        updateTempFn().then((isHeating) => {
+            const nextDelay = isHeating === 1 ? heating : idle;
+            setTimeout(poll, nextDelay);
+        }).catch((err) => {
+            log.debug('Temperature poll failed:', err.message);
+            // Continue polling even on failure, with idle delay
+            setTimeout(poll, idle);
+        });
+    }
+
+    poll();
+}
+
 
 class StaggEKGProWifiHandler {
     constructor(log, config, accessory, Service, Characteristic) {
@@ -124,6 +147,19 @@ class StaggEKGProWifiHandler {
                 if (tempC === null) throw new Error(`could not parse current temp: ${body.trim()}`);
                 return tempC;
             });
+
+        // Periodic polling with configurable intervals for heating vs idle
+        startTempPolling(log, config, service, async () => {
+            const body = await client.commandAsync('state');
+            const isHeating = client.parseState(body);
+            if (isHeating === 1) {
+                const tempC = client.parseTemp(body);
+                if (tempC !== null) {
+                    service.updateCharacteristic(Characteristic.CurrentTemperature, tempC);
+                }
+            }
+            return isHeating;
+        });
 
         service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
             .onGet(async () => 0)
@@ -186,6 +222,20 @@ class StaggEKGPlusHandler {
                 if (isNaN(tempC)) throw new Error(`could not parse current temp: ${body}`);
                 return tempC;
             });
+
+        // Periodic polling with configurable intervals for heating vs idle
+        startTempPolling(log, config, service, async () => {
+            const stateBody = await _fetch('/state').then(r => r.text());
+            const isHeating = parseFloat(stateBody);
+            if (isHeating === 1) {
+                const currentBody = await _fetch('/current_temp').then(r => r.text());
+                const tempC = (parseFloat(currentBody) - 32) / 1.8;
+                if (!isNaN(tempC)) {
+                    service.updateCharacteristic(Characteristic.CurrentTemperature, tempC);
+                }
+            }
+            return isHeating;
+        });
 
         service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
             .onGet(async () => 0)
