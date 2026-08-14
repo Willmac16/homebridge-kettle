@@ -56,6 +56,12 @@
               "default": 100,
               "minimum": 0,
               "maximum": 100
+            },
+            "syncTime": {
+              "type": "boolean",
+              "title": "Sync Kettle Clock",
+              "description": "Set the Wi-Fi kettle clock to the host system's local time when Homebridge starts and once per day.",
+              "default": false
             }
           },
           "required": ["name", "connection", "url"]

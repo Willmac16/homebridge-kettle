@@ -71,6 +71,16 @@ class StaggEKGProWifiHandler {
         const minTemp = typeof config.minTemp === 'number' ? config.minTemp : 40;
         const maxTemp = typeof config.maxTemp === 'number' ? config.maxTemp : 100;
 
+        if (config.syncTime === true) {
+            const syncClock = () => client.syncClock()
+                .then(() => log.info(`Synced ${config.name || 'kettle'} clock to local time.`))
+                .catch(err => log.warn(`Could not sync ${config.name || 'kettle'} clock: ${err.message}`));
+
+            syncClock();
+            this.clockSyncInterval = setInterval(syncClock, 24 * 60 * 60 * 1000);
+            this.clockSyncInterval.unref?.();
+        }
+
         accessory.getService(Service.AccessoryInformation)
             .setCharacteristic(Characteristic.Manufacturer, 'Fellow')
             .setCharacteristic(Characteristic.Model, 'Stagg EKG Pro')

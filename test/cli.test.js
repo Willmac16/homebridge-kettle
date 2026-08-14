@@ -33,3 +33,8 @@ test('encode: ampersand is percent-encoded', () => {
 test('encode: equals sign is percent-encoded', () => {
   assert.strictEqual(client._encode('setsetting key=val'), 'setsetting+key%3Dval')
 })
+
+test('clock command uses the system local time', () => {
+    const date = new Date(2026, 7, 14, 9, 5, 3)
+    assert.strictEqual(client.clockCommand(date), 'setclock 9 5 3')
+})
