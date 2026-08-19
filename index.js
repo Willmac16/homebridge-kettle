@@ -1,6 +1,7 @@
 'use strict'
 
 const StaggEKGProClient = require('./lib/stagg-ekg-pro-client')
+const { startTempPolling } = require('./lib/temperature-polling')
 
 module.exports = (api) => {
     api.registerPlatform('homebridge-kettle-pro', 'StaggKettle', StaggKettlePlatform);
@@ -64,7 +65,6 @@ class StaggKettlePlatform {
     }
 }
 
-
 class StaggEKGProWifiHandler {
     constructor(log, config, accessory, Service, Characteristic) {
         const client = new StaggEKGProClient(config.url);
@@ -124,6 +124,21 @@ class StaggEKGProWifiHandler {
                 if (tempC === null) throw new Error(`could not parse current temp: ${body.trim()}`);
                 return tempC;
             });
+
+        // Periodic polling with configurable intervals for heating vs idle
+        startTempPolling(log, config, async (idleTemperatureDue) => {
+            const body = await client.commandAsync('state');
+            const isHeating = client.parseState(body);
+            let temperatureUpdated = false;
+            if (isHeating === 1 || idleTemperatureDue) {
+                const tempC = client.parseTemp(body);
+                if (tempC !== null) {
+                    service.updateCharacteristic(Characteristic.CurrentTemperature, tempC);
+                    temperatureUpdated = true;
+                }
+            }
+            return { isHeating, temperatureUpdated };
+        });
 
         service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
             .onGet(async () => 0)
@@ -186,6 +201,22 @@ class StaggEKGPlusHandler {
                 if (isNaN(tempC)) throw new Error(`could not parse current temp: ${body}`);
                 return tempC;
             });
+
+        // Periodic polling with configurable intervals for heating vs idle
+        startTempPolling(log, config, async (idleTemperatureDue) => {
+            const stateBody = await _fetch('/state').then(r => r.text());
+            const isHeating = parseFloat(stateBody);
+            let temperatureUpdated = false;
+            if (isHeating === 1 || idleTemperatureDue) {
+                const currentBody = await _fetch('/current_temp').then(r => r.text());
+                const tempC = (parseFloat(currentBody) - 32) / 1.8;
+                if (!isNaN(tempC)) {
+                    service.updateCharacteristic(Characteristic.CurrentTemperature, tempC);
+                    temperatureUpdated = true;
+                }
+            }
+            return { isHeating, temperatureUpdated };
+        });
 
         service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
             .onGet(async () => 0)
