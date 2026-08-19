@@ -1,6 +1,7 @@
 'use strict'
 
 const StaggEKGProClient = require('./lib/stagg-ekg-pro-client')
+const { createTemperatureRecovery } = require('./lib/temperature-recovery')
 
 module.exports = (api) => {
     api.registerPlatform('homebridge-kettle-pro', 'StaggKettle', StaggKettlePlatform);
@@ -55,9 +56,17 @@ class StaggKettlePlatform {
     _setupAccessory(accessory) {
         const config = accessory.context.config;
         const mode = String(config.connection || config.mode || '').toLowerCase();
-        const { Service, Characteristic } = this.api.hap;
+        const { Service, Characteristic, HapStatusError, HAPStatus } = this.api.hap;
         if (mode === 'wifi') {
-            new StaggEKGProWifiHandler(this.log, config, accessory, Service, Characteristic);
+            new StaggEKGProWifiHandler(
+                this.log,
+                config,
+                accessory,
+                Service,
+                Characteristic,
+                HapStatusError,
+                HAPStatus,
+            );
         } else {
             new StaggEKGPlusHandler(this.log, config, accessory, Service, Characteristic);
         }
@@ -66,7 +75,7 @@ class StaggKettlePlatform {
 
 
 class StaggEKGProWifiHandler {
-    constructor(log, config, accessory, Service, Characteristic) {
+    constructor(log, config, accessory, Service, Characteristic, HapStatusError, HAPStatus) {
         const client = new StaggEKGProClient(config.url);
         const minTemp = typeof config.minTemp === 'number' ? config.minTemp : 40;
         const maxTemp = typeof config.maxTemp === 'number' ? config.maxTemp : 100;
@@ -116,12 +125,27 @@ class StaggEKGProWifiHandler {
                 ]);
             });
 
-        service.getCharacteristic(Characteristic.CurrentTemperature)
-            .setProps({ minValue: 0, maxValue: maxTemp })
+        const currentTemperature = service.getCharacteristic(Characteristic.CurrentTemperature)
+            .setProps({ minValue: 0, maxValue: 100 });
+        const temperatureRecovery = createTemperatureRecovery(log, async () => {
+            const body = await client.commandAsync('state');
+            const tempC = client.parseTemp(body);
+            if (tempC === null) return false;
+
+            service.updateCharacteristic(Characteristic.CurrentTemperature, tempC);
+            return true;
+        });
+
+        currentTemperature
             .onGet(async () => {
                 const body = await client.commandAsync('state');
                 const tempC = client.parseTemp(body);
-                if (tempC === null) throw new Error(`could not parse current temp: ${body.trim()}`);
+                if (tempC === null) {
+                    temperatureRecovery.start();
+                    log.info('No temp data, is kettle off its base?');
+                    throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+                }
+                temperatureRecovery.stop();
                 return tempC;
             });
 
