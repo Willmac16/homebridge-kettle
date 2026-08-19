@@ -33,7 +33,7 @@
     "homebridge": ">=1.3.0 <3.0.0"
   },
   "scripts": {
-    "test": "node test/parsers.test.js && node test/cli.test.js"
+    "test": "node test/parsers.test.js && node test/cli.test.js && node test/temperature-recovery.test.js"
   },
   "homebridge": {
     "pluginAlias": "StaggKettle",
