@@ -50,6 +50,38 @@
               "minimum": 5,
               "condition": { "functionBody": "return model.kettles[arrayIndices].connection === 'native';" }
             },
+            "bluetooth": {
+              "type": "object",
+              "title": "Bluetooth (on/off)",
+              "description": "Native API only. Firmware 1.2.26 can only be switched on or off over Bluetooth, which Homebridge reaches through an ESPHome Bluetooth proxy near the kettle (`bluetooth_proxy:` with `active: true`). While that link is up it also gives live readings during heating, when the kettle's Wi-Fi is off. Leave the proxy empty to stay on Wi-Fi only.",
+              "condition": { "functionBody": "return model.kettles[arrayIndices].connection === 'native';" },
+              "properties": {
+                "proxy": {
+                  "type": "string",
+                  "title": "ESPHome Bluetooth proxy",
+                  "description": "Host name or IP address of the ESPHome device running bluetooth_proxy."
+                },
+                "port": {
+                  "type": "number",
+                  "title": "API port",
+                  "default": 6053,
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "encryptionKey": {
+                  "type": "string",
+                  "title": "API encryption key",
+                  "description": "The proxy's `api: encryption: key:` (base64), if it has one.",
+                  "pattern": "^[A-Za-z0-9+/]{43}=$"
+                },
+                "address": {
+                  "type": "string",
+                  "title": "Kettle Bluetooth address",
+                  "description": "Optional. Without it the first kettle the proxy sees (named EKG-…) is used, and its address is logged so you can pin it here.",
+                  "pattern": "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
+                }
+              }
+            },
             "minTemp": {
               "type": "number",
               "title": "Minimum Temperature (°C)",
